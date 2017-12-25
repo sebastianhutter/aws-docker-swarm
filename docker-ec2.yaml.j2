@@ -1,0 +1,157 @@
+{%- set s3bucket = "hutter-cloud-docker-swarm-eu-central-1" %}
+
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Deploy rancher management server'
+
+Resources:
+
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "rancher-role"
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !ImportValue {{s3bucket}}-Policy-Write-ARN
+
+
+  InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: '/'
+      Roles:
+        - !Ref InstanceRole
+
+  SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: "Allow SSH and HTTP Access"
+      VpcId:
+        !ImportValue VPC
+      SecurityGroupIngress:
+        # SSH
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: '0.0.0.0/0'
+        # http/s
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 2376
+          ToPort: 2376
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 2377
+          ToPort: 2377
+          CidrIp: '0.0.0.0/0'
+
+
+  Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: ami-c7ee5ca8
+      KeyName: aws
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: t2.nano
+      AvailabilityZone:  eu-central-1a
+      EbsOptimized: false
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp2
+            DeleteOnTermination: true
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeviceIndex: "0"
+          SubnetId: !ImportValue 'SubnetPublic'
+          GroupSet:
+            - !Ref SecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #cloud-config
+            hostname: swarm-master
+            locale: en_US.utf8
+            manage_etc_hosts: true
+            package_update: true
+            package_upgrade: true
+            packages:
+              - curl
+              - unzip
+              - docker
+            runcmd:
+              - chkconfig docker
+              - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/swarm/ /var/lib/docker/swarm
+              - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/portainer/ /tmp/portainer
+              - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/ca/ /etc/docker/certs
+              - chmod 600 /etc/docker/certs/*
+              - /etc/init.d/docker start
+              - sleep 5
+              - docker swarm init --advertise-addr $(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+              - sleep 3
+              - docker node update --availability drain $(docker node ls | grep $(hostname) | awk '{print $1}')
+              - docker volume create portainer-data
+              - docker run -d --name portainer-data -v portainer-data:/data busybox
+              - docker cp /tmp/portainer/* portainer-data:/data/
+              - docker run -d --name portainer -v portainer-data:/data -v /var/run/docker.sock:/var/run/docker.sock --restart unless-stopped -p 443:9000 portainer/portainer --admin-password '$2y$05$NqFKVjBmXHjVxn3hOayLTONTcrfoxsFCO8t5nVB5kGn0B1AArNh8.'
+            write_files:
+              - owner: root:root
+                path: /etc/cron.d/swarm-backup
+                content: "0 * * * * root aws --region eu-central-1 s3 sync /var/lib/docker/swarm s3://hutter-cloud-docker-swarm-eu-central-1/swarm/"
+              - owner: root:root
+                path: /etc/cron.d/portainer-backup
+                content: "0 * * * * root docker cp portainer-data:/data /tmp/portainer/; aws --region eu-central-1 s3 sync /tmp/portainer/data s3://hutter-cloud-docker-swarm-eu-central-1/portainer/"
+              - owner: root:root
+                path: /etc/docker/daemon.json
+                content: |
+                  {
+                    "hosts": [ "tcp://0.0.0.0:2376", "unix:///var/run/docker.sock" ],
+                    "tlsverify": true,
+                    "tlscacert": "/etc/docker/certs/ca.pem",
+                    "tlscert": "/etc/docker/certs/cert.pem",
+                    "tlskey": "/etc/docker/certs/key.pem"
+                  }
+
+  InstanceEIp:
+    Type: AWS::EC2::EIP
+    DependsOn: Instance
+    Properties:
+      InstanceId: !Ref Instance
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z3CBRYU3UXXFKT
+      Comment: "cname entry for easier config"
+      Name: "swarm-master.hutter.cloud."
+      Type: "A"
+      TTL: "300"
+      ResourceRecords:
+        - !Ref InstanceEIp
+
+Outputs:
+  PublicEip:
+    Description: 'Elastic IP'
+    Value: !Ref InstanceEIp
+  Cname:
+    Description: cname for easier handling
+    Value: rancher.hutter.cloud
+

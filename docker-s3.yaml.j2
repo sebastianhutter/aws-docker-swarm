@@ -1,0 +1,124 @@
+{%- set s3bucket = "hutter-cloud-docker-swarm-eu-central-1" %}
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: {{s3bucket}}
+      VersioningConfiguration:
+        Status: Suspended
+
+  # read only role
+  ReadOnlyRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: {{s3bucket}}-role-readonly
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - 'ec2.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+
+  # read write role
+  ReadWriteRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: {{s3bucket}}-role-write
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - 'ec2.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+
+  # read only policy
+  ReadOnlyPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Grants read-only access
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetBucketLocation"
+              - "s3:ListBucket"
+              - "s3:GetObject"
+            Resource: "arn:aws:s3:::{{s3bucket}}*"
+      Roles:
+        - !Ref ReadOnlyRole
+
+  ReadWritePolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      Description: Grants read-write access
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetBucketLocation"
+              - "s3:ListBucket"
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+              - "s3:GetObjectVersion"
+            Resource:
+              - "arn:aws:s3:::{{s3bucket}}"
+              - "arn:aws:s3:::{{s3bucket}}*"
+              - "arn:aws:s3:::{{s3bucket}}/*"
+      Roles:
+        - !Ref ReadWriteRole
+
+Outputs:
+  # bucket info
+  BucketName:
+    Description: "Bucket resource"
+    Value: !Ref Bucket
+
+  # export role info
+  ReadOnlyRole:
+    Description: ReadOnly Rolename
+    Value: !Ref ReadOnlyRole
+    Export:
+      Name: '{{s3bucket}}-Role-ReadOnly'
+  ReadOnlyRoleArn:
+    Description: ReadOnly Role ARN
+    Value: !GetAtt ReadOnlyRole.Arn
+    Export:
+      Name: '{{s3bucket}}-Role-ReadOnly-ARN'
+
+  ReadWriteRole:
+    Description: ReadWrite Rolename
+    Value: !Ref ReadWriteRole
+    Export:
+      Name: '{{s3bucket}}-Role-Write'
+  ReadWriteRoleArn:
+    Description: ReadWrite Role ARN
+    Value: !GetAtt ReadWriteRole.Arn
+    Export:
+      Name: '{{s3bucket}}-Role-Write-ARN'
+
+  # export policy info
+  ReadOnlyPolicyArn:
+    Description: ReadOnly Policy ARN
+    Value: !Ref ReadOnlyPolicy
+    Export:
+      Name: '{{s3bucket}}-Policy-ReadOnly-ARN'
+
+  ReadWritePolicyArn:
+    Description: ReadWrite Policy ARN
+    Value: !Ref ReadWritePolicy
+    Export:
+      Name: '{{s3bucket}}-Policy-Write-ARN'
