@@ -19,3 +19,6 @@ aws cloudformation deploy --stack-name docker-ec2 --template-file docker-ec2.cf 
 echo "$(date) : get assigned public ip"
 publicip=$(aws cloudformation describe-stacks --stack-name docker-ec2 | jq -r -c '[ .Stacks[0].Outputs[] | select( .OutputKey | contains("PublicEip"))  ][0].OutputValue')
 echo "$(date) : public ip is: ${publicip}, make sure to adapt dns records etc"
+
+echo "$(date) : cleanup"
+rm docker-vpc.cf docker-ec2.cf docker-s3.cf
