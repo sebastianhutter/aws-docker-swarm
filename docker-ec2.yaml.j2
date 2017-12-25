@@ -102,7 +102,9 @@ Resources:
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/swarm/ /var/lib/docker/swarm
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/portainer/ /tmp/portainer
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/ca/ /etc/docker/certs
-              - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/ /etc/letsencrypt
+              - aws --region eu-central-1 s3 cp s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/letsencrypt.tar.gz /tmp/letsencrypt.tar.gz
+              - tar -xf /tmp/letsencrypt.tar.gz -C /
+              - rm -f /tmp/letsencrypt.tar.gz
               - chmod 600 /etc/docker/certs/*
               - /etc/init.d/docker start
               - sleep 5
@@ -122,7 +124,7 @@ Resources:
                 content: "0 * * * * root docker cp portainer-data:/data /tmp/portainer/; aws --region eu-central-1 s3 sync /tmp/portainer/data s3://hutter-cloud-docker-swarm-eu-central-1/portainer/"
               - owner: root:root
                 path: /etc/cron.d/letsencrypt-backup
-                content: "0 * * * * root aws --region eu-central-1 s3 sync /etc/letsencrypt s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/"
+                content: "0 * * * * root tar -czf /tmp/letsencrypt.tar.gz /etc/letsencrypt; aws --region eu-central-1 s3 cp /tmp/letsencrypt.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/; rm -f /tmp/letsencrypt.tar.gz"
               - owner: root:root
                 path: /etc/cron.d/letsencrypt-renewal
                 content: "* * */10 * * root docker run -it --rm -p 80:80 --name certbot -v /etc/letsencrypt:/etc/letsencrypt -v /var/lib/letsencrypt:/var/lib/letsencrypt certbot/certbot certonly --quiet --agree-tos --standalone --preferred-challenges http --domains swarm-master.hutter.cloud -m mail@sebastian-hutter.ch ; docker restart portainer"
