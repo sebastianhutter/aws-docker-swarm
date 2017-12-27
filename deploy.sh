@@ -5,12 +5,14 @@ export AWS_DEFAULT_REGION=eu-central-1
 
 echo "$(date) : render templates"
 j2 docker-vpc.yaml.j2 > docker-vpc.cf
+j2 docker-vpn.yaml.j2 > docker-vpn.cf
 j2 docker-ec2.yaml.j2 > docker-ec2.cf
 j2 docker-s3.yaml.j2 > docker-s3.cf
 
-
 echo "$(date) : deploy vpc stack"
 aws cloudformation deploy --stack-name docker-vpc --template-file docker-vpc.cf --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM
+#echo "$(date) : deploy vpn stack"
+#aws cloudformation deploy --stack-name docker-vpn --template-file docker-vpn.cf --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM
 echo "$(date) : deploy s3 stack"
 aws cloudformation deploy --stack-name docker-s3 --template-file docker-s3.cf --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM
 echo "$(date) : deploy ec2 stack"
@@ -19,6 +21,7 @@ aws cloudformation deploy --stack-name docker-ec2 --template-file docker-ec2.cf 
 echo "$(date) : get assigned public ip"
 publicip=$(aws cloudformation describe-stacks --stack-name docker-ec2 | jq -r -c '[ .Stacks[0].Outputs[] | select( .OutputKey | contains("PublicEip"))  ][0].OutputValue')
 echo "$(date) : public ip is: ${publicip}, make sure to adapt dns records etc"
+echo "$(date) : login to the systema and set the password for the mikrotik user : sudo passwd mikrotik"
 
 echo "$(date) : cleanup"
-rm docker-vpc.cf docker-ec2.cf docker-s3.cf
+rm docker-vpc.cf docker-ec2.cf docker-s3.cf docker-vpn.cf
