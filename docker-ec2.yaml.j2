@@ -54,6 +54,10 @@ Resources:
           ToPort: 443
           CidrIp: '0.0.0.0/0'
         - IpProtocol: tcp
+          FromPort: 1194
+          ToPort: 1194
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
           FromPort: 2376
           ToPort: 2376
           CidrIp: '0.0.0.0/0'
@@ -61,7 +65,6 @@ Resources:
           FromPort: 2377
           ToPort: 2377
           CidrIp: '0.0.0.0/0'
-
 
   Instance:
     Type: "AWS::EC2::Instance"
@@ -97,14 +100,21 @@ Resources:
               - curl
               - unzip
               - docker
+              - openvpn
             runcmd:
               - chkconfig docker
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/swarm/ /var/lib/docker/swarm
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/portainer/ /tmp/portainer
               - aws --region eu-central-1 s3 sync s3://hutter-cloud-docker-swarm-eu-central-1/ca/ /etc/docker/certs
               - aws --region eu-central-1 s3 cp s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/letsencrypt.tar.gz /tmp/letsencrypt.tar.gz
+              - aws --region eu-central-1 s3 cp s3://hutter-cloud-docker-swarm-eu-central-1/openvpn/openvpn.tar.gz /tmp/openvpn.tar.gz
               - tar -xf /tmp/letsencrypt.tar.gz -C /
+              - tar -xf /tmp/openvpn.tar.gz -C /
               - rm -f /tmp/letsencrypt.tar.gz
+              - rm -f /tmp/openvpn.tar.gz
+              - echo "ip route add 192.168.30.0/24 via 10.8.0.2" >> /etc/rc.local
+              - /etc/init.d/openvpn start
+              - adduser mikrotik
               - chmod 600 /etc/docker/certs/*
               - /etc/init.d/docker start
               - sleep 5
@@ -129,6 +139,9 @@ Resources:
                 path: /etc/cron.d/letsencrypt-renewal
                 content: "* * */10 * * root docker run -it --rm -p 80:80 --name certbot -v /etc/letsencrypt:/etc/letsencrypt -v /var/lib/letsencrypt:/var/lib/letsencrypt certbot/certbot certonly --quiet --agree-tos --standalone --preferred-challenges http --domains swarm-master.hutter.cloud -m mail@sebastian-hutter.ch ; docker restart portainer"
               - owner: root:root
+                path: /etc/cron.d/openvpn-backup
+                content: "0 * * * * root tar -czf /tmp/openvpn.tar.gz /etc/openvpn; aws --region eu-central-1 s3 cp /tmp/openvpn.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/openvpn/; rm -f /tmp/openvpn.tar.gz"
+              - owner: root:root
                 path: /etc/docker/daemon.json
                 content: |
                   {
@@ -145,7 +158,7 @@ Resources:
     Properties:
       InstanceId: !Ref Instance
 
-  DnsRecord:
+  DnsRecordExternalName:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: Z3CBRYU3UXXFKT
@@ -156,10 +169,24 @@ Resources:
       ResourceRecords:
         - !Ref InstanceEIp
 
+  DnsRecordInternalName:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: Z3CBRYU3UXXFKT
+      Comment: "cname entry for easier config"
+      Name: "swarm-master-internal.hutter.cloud."
+      Type: "A"
+      TTL: "300"
+      ResourceRecords:
+        - !GetAtt Instance.PrivateIp
+
 Outputs:
   PublicEip:
     Description: 'Elastic IP'
     Value: !Ref InstanceEIp
+  PrivateIp:
+    Description: 'Private IP'
+    Value: !GetAtt Instance.PrivateIp
   Cname:
     Description: cname for easier handling
     Value: rancher.hutter.cloud
