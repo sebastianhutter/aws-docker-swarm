@@ -119,7 +119,7 @@ Resources:
               - chmod 600 /etc/docker/certs/*
               - /etc/init.d/docker start
               - sleep 5
-              - docker swarm init --advertise-addr $(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+              - docker swarm init --advertise-addr $(curl http://169.254.169.254/latest/meta-data/local-ipv4)
               - sleep 3
               - docker node update --availability drain $(docker node ls | grep $(hostname) | awk '{print $1}')
               - docker volume create portainer-data
