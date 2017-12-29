@@ -50,8 +50,8 @@ Resources:
           ToPort: 80
           CidrIp: '0.0.0.0/0'
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
+          FromPort: 9000
+          ToPort: 9000
           CidrIp: '0.0.0.0/0'
         - IpProtocol: tcp
           FromPort: 1194
@@ -126,7 +126,7 @@ Resources:
               - docker volume create portainer-data
               - docker run -d --name portainer-data -v portainer-data:/data busybox
               - docker cp /tmp/portainer/* portainer-data:/data/
-              - docker run -d --name portainer -v /etc/letsencrypt:/certs:ro -v portainer-data:/data -v /var/run/docker.sock:/var/run/docker.sock --restart unless-stopped -p 443:9000 portainer/portainer --admin-password '$2y$05$NqFKVjBmXHjVxn3hOayLTONTcrfoxsFCO8t5nVB5kGn0B1AArNh8.' --ssl --sslcert /certs/live/swarm-master.hutter.cloud/fullchain.pem --sslkey /certs/live/swarm-master.hutter.cloud/privkey.pem
+              - docker run -d --name portainer -v /etc/letsencrypt:/certs:ro -v portainer-data:/data -v /var/run/docker.sock:/var/run/docker.sock --restart unless-stopped -p 9000:9000 portainer/portainer --admin-password '$2y$05$NqFKVjBmXHjVxn3hOayLTONTcrfoxsFCO8t5nVB5kGn0B1AArNh8.' --ssl --sslcert /certs/live/swarm-master.hutter.cloud/fullchain.pem --sslkey /certs/live/swarm-master.hutter.cloud/privkey.pem
             write_files:
               - owner: root:root
                 path: /etc/cron.d/swarm-backup
