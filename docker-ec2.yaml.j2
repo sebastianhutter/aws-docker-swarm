@@ -141,6 +141,9 @@ Resources:
                 path: /etc/cron.d/openvpn-backup
                 content: "0 * * * * root /bin/tar -czf /tmp/openvpn.tar.gz /etc/openvpn; /usr/bin/aws --region eu-central-1 s3 cp /tmp/openvpn.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/openvpn/; /bin/rm -f /tmp/openvpn.tar.gz"
               - owner: root:root
+                path: /etc/cron.d/restart-drone-agents
+                content: "0 */3 * * * root /usr/bin/docker service update --force drone_agent"
+              - owner: root:root
                 path: /etc/docker/daemon.json
                 content: |
                   {
