@@ -127,19 +127,19 @@ Resources:
             write_files:
               - owner: root:root
                 path: /etc/cron.d/swarm-backup
-                content: "0 * * * * root aws --region eu-central-1 s3 sync /var/lib/docker/swarm s3://hutter-cloud-docker-swarm-eu-central-1/swarm/"
+                content: "0 * * * * root /usr/bin/aws --region eu-central-1 s3 sync /var/lib/docker/swarm s3://hutter-cloud-docker-swarm-eu-central-1/swarm/"
               - owner: root:root
                 path: /etc/cron.d/portainer-backup
-                content: "0 * * * * root docker cp portainer-data:/data /tmp/portainer/; aws --region eu-central-1 s3 sync /tmp/portainer/data s3://hutter-cloud-docker-swarm-eu-central-1/portainer/"
+                content: "0 * * * * root /usr/bin/docker cp portainer-data:/data /tmp/portainer/; /usr/bin/aws --region eu-central-1 s3 sync /tmp/portainer/data s3://hutter-cloud-docker-swarm-eu-central-1/portainer/"
               - owner: root:root
                 path: /etc/cron.d/letsencrypt-backup
-                content: "0 * * * * root tar -czf /tmp/letsencrypt.tar.gz /etc/letsencrypt; aws --region eu-central-1 s3 cp /tmp/letsencrypt.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/; rm -f /tmp/letsencrypt.tar.gz"
+                content: "0 * * * * root /bin/tar -czf /tmp/letsencrypt.tar.gz /etc/letsencrypt; /usr/bin/aws --region eu-central-1 s3 cp /tmp/letsencrypt.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/letsencrypt/; /bin/rm -f /tmp/letsencrypt.tar.gz"
               - owner: root:root
                 path: /etc/cron.d/letsencrypt-renewal
-                content: "* * */10 * * root docker run -it --rm -p 80:80 --name certbot -v /etc/letsencrypt:/etc/letsencrypt -v /var/lib/letsencrypt:/var/lib/letsencrypt certbot/certbot certonly --quiet --agree-tos --standalone --preferred-challenges http --domains swarm-master.hutter.cloud -m mail@sebastian-hutter.ch ; docker restart portainer"
+                content: "* * */10 * * root /usr/bin/docker run -it --rm -p 80:80 --name certbot -v /etc/letsencrypt:/etc/letsencrypt -v /var/lib/letsencrypt:/var/lib/letsencrypt certbot/certbot certonly --quiet --agree-tos --standalone --preferred-challenges http --domains swarm-master.hutter.cloud -m mail@sebastian-hutter.ch ; /usr/bin/docker restart portainer"
               - owner: root:root
                 path: /etc/cron.d/openvpn-backup
-                content: "0 * * * * root tar -czf /tmp/openvpn.tar.gz /etc/openvpn; aws --region eu-central-1 s3 cp /tmp/openvpn.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/openvpn/; rm -f /tmp/openvpn.tar.gz"
+                content: "0 * * * * root /bin/tar -czf /tmp/openvpn.tar.gz /etc/openvpn; /usr/bin/aws --region eu-central-1 s3 cp /tmp/openvpn.tar.gz s3://hutter-cloud-docker-swarm-eu-central-1/openvpn/; /bin/rm -f /tmp/openvpn.tar.gz"
               - owner: root:root
                 path: /etc/docker/daemon.json
                 content: |
