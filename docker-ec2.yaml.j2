@@ -124,6 +124,7 @@ Resources:
               - docker run -d --name portainer-data -v portainer-data:/data busybox
               - docker cp /tmp/portainer/* portainer-data:/data/
               - docker run -d --name portainer -v /etc/letsencrypt:/certs:ro -v portainer-data:/data -v /var/run/docker.sock:/var/run/docker.sock --restart unless-stopped -p 9000:9000 portainer/portainer --admin-password '$2y$05$NqFKVjBmXHjVxn3hOayLTONTcrfoxsFCO8t5nVB5kGn0B1AArNh8.' --ssl --sslcert /certs/live/swarm-master.hutter.cloud/fullchain.pem --sslkey /certs/live/swarm-master.hutter.cloud/privkey.pem
+              - docker run -d --name dd-agent -v /var/run/docker.sock:/var/run/docker.sock:ro -v /proc/:/host/proc/:ro -v /cgroup/:/host/sys/fs/cgroup:ro -e API_KEY=853acafbe34d1c1512fc01a41b78015e -e SD_BACKEND=docker datadog/docker-dd-agent:latest
             write_files:
               - owner: root:root
                 path: /etc/cron.d/swarm-backup
